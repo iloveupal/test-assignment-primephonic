@@ -1,0 +1,8 @@
+{
+  "trackMetadataUrl": "https://primephonic-assignments.s3-eu-west-1.amazonaws.com/backend-task/tracks.json",
+  "usersDataPath": "./users.csv",
+  "streamingDataPath": "./streaming.csv",
+  "webRevenue": 0.9,
+  "appStoreRevenue": 0.7,
+  "port": 3000
+}

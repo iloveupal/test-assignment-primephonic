@@ -1,66 +1,41 @@
-# Primephonic Backend coding challenge
-Thanks for your interest in Primephonic and for taking the time to do our backend coding challenge. We hope you enjoy developing it as much as we did :)
+## Short instructions on how to run
 
-## Background
-An important part of our business is keeping track of what our customers stream, so we can pay back royalties towards the labels and artists. Our payout model is different than other streaming services though, in that we pay royalties based on total number of seconds streamed, instead of how many times a track has been streamed.
+**Install dependencies**
+```
+npm install
+```
+or 
+```
+yarn install
+```
 
-For this, the client apps (Android, iOS & Web) monitor the tracks being streamed and periodically send usage reports to our backend, which collects and processes these events.
+**Launch the server**
 
-## Summary
-Your task is to develop a system which is able to generate a financial report based on streaming usage of users. As an output, this report should indicate how much money should be distributed to each label. For this, you will need to gather data from 3 different data sources:
+```
+npm start
+```
+or
+```
+yarn start
+```
 
-1. [streaming.csv](https://github.com/Primephonic/backend-engineer-assignment/blob/master/streaming.csv): local file containing information of which tracks have been streamed by which users, and the duration of each stream.
-2. [users.csv](https://github.com/Primephonic/backend-engineer-assignment/blob/master/users.csv): local file containing user profile information such as their active subscription plan and which platform they subscribed with (Apps stores or via web).
-3. [Metadata API](https://primephonic-assignments.s3-eu-west-1.amazonaws.com/backend-task/tracks.json): remote JSON file which provides additional metadata per each track, such as the track name and the label it belongs to.
+**Go to `localhost:3000`**
 
-## Business rules
-To work out how much money needs to be sent to each label, we first need to determine what our overall revenue is. As each user has an active subscription, we simply add up all of their subscription fees, taking the following into account that:
-1. Users that subscribed via the app stores (`origin = app_store`) only contribute `70%` towards our revenue (So, if a user paid €7.99, we only consider €5.59 as their contribution towards our overall revenue).
-2. Users that subscribed via the web app (`origin = web`) only contribute `90%` towards our revenue.
+This is the port that is used by default from `config.json`.
 
-Now we need to analyse the streaming data itself to determine how many seconds in total have been streamed, and then split it per label. With these 2 data points, we can now extrapolate the percentage each label needs to receive, based on how many seconds have been streamed per label.
+**Use endpoints**
 
-## Sample calculation
+`/report` — to get revenue report by label
+`/users/:user_id` — to get streaming data for user
 
-**Total Revenue**: `€10.000`<br/> 
-**Total Seconds Streamed**: `20.000`
+## Design
 
-| Label   |      Seconds Streamed      |  Percentage Streamed |  Revenue Split |
-|----------|:-------------:|------:|------:|
-| Label 1 |  10.000 | 50% | €5.000 |
-| Label 2 |    6.000   |   30% | €3.000 |
-| Label 3 | 4.000 |    20% | €2.000 |
+Here I'd like to describe how I'd build this app for production:
+1. Have a separate script or job to generate the report and save it in a file, redis or whatnot. Currently, we evaluate a report in a lazy manner when it's requested through api, which glues our api and our report generation together. I do believe that we could benefit from running the api and the job independently.
+2. For sake of simplicity we store intermediate values in memory, but these can get quite huge in production. Storing intermediate results in a file/redis/.. can help us ensure two things: that we don't run out of memory; that if our job breaks, we can continue from exactly where we were. Of course, it's a huge performance tradeoff but with large amounts of data, it can be justified. Stream protocols can help us with that: they allow to read/write/transform data in small chunks thus keeping the memory usage stable.
 
-## Tasks
-The assignment must:
-1. Consolidate all 3 different data sources into a single source of truth (can be stored in-memory). Each entry in this storage must have the following structure:</br>
-`{ date, user_id, product_type, fee, origin, region, track_id, track_name, track_label, seconds }`
+## For sake of simplicity
 
-2. Generate the financial output based on the business rules
-
-3. Expose this data via a RESTful API with 2 endpoints:
-- `GET /report` returns the amount to be paid our per label (i.e.`{ "Label 1" : 5000, "Label 2": 3000, "Label 3": 2000}`)
-- `GET /users/{user_id}` returns how many seconds have been streamed for this user (i.e. `{"User":"User id 1","Total Streamed":3000}`)
-
-## Evaluation criteria
-The assignment will be evaluated based on the following points:
-
-1. Code organization
-<br/>Is the code well organized, easy to follow and well-structured? Think responsibilities, separation of concerns.
-
-2. Performance
-<br/>Although the dataset is small in size, the proposed solution should be able to scale to handle input files significantly larger in size
-
-3. Compliance
-<br/>Does the application satisfy the described use cases?
-
-4. Simplicity
-<br/>Don't over-engineer it. If you feel like you're taking shortcuts you're not comfortable with, go with the simple solution and later explain how you would do it differently in a real production app in the `README.md`.
-
-## Technologies
-Any of the following are allowed: `Typescript`, `JavaScript`, `Node.js`
-
-## Submission Guidelines
-- Submit your project in a single `zip` file to your Primephonic contact
-- Include a `README.md` with instructions on how to run it, together with any additional information you consider appropriate (assumptions, design decisions made, etc.)
-- Include *only* source code and assets (no libraries, modules, etc.)
+1. The file structure is flat.
+2. Function `parseStreamingData` is dependent on the implementation of stream reading library. Generators could provide a good abstraction for this: instead, we could provide an argument like `getNextStreamingRow: function`
+3. The whole concept of streaming here is only a half measure, because we store everything in memory anyway.

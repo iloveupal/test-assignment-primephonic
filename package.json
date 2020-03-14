@@ -1,0 +1,15 @@
+{
+  "name": "test-primephonic",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "d sorokin",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "csv-reader": "^1.0.6",
+    "express": "^4.17.1"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
