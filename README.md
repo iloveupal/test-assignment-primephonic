@@ -1,4 +1,4 @@
-## Short instructions on how to run
+# How to run
 
 **Install dependencies**
 ```
@@ -26,16 +26,28 @@ This is the port that is used by default from `config.json`.
 **Use endpoints**
 
 `/report` — to get revenue report by label
+
 `/users/:user_id` — to get streaming data for user
 
-## Design
+# Algorithm
 
-Here I'd like to describe how I'd build this app for production:
-1. Have a separate script or job to generate the report and save it in a file, redis or whatnot. Currently, we evaluate a report in a lazy manner when it's requested through api, which glues our api and our report generation together. I do believe that we could benefit from running the api and the job independently.
-2. For sake of simplicity we store intermediate values in memory, but these can get quite huge in production. Storing intermediate results in a file/redis/.. can help us ensure two things: that we don't run out of memory; that if our job breaks, we can continue from exactly where we were. Of course, it's a huge performance tradeoff but with large amounts of data, it can be justified. Stream protocols can help us with that: they allow to read/write/transform data in small chunks thus keeping the memory usage stable.
+1. Parse user data in a look up hash
+2. Parse tracks metadata in a look up hash
+3. Go over the streaming data and use the above hashes to get every piece of data together in a single source of truth
+4. Calculate total disposable revenue from the users (could probably be part of step 1)
+5. Map-reduce our datasource into a hash of label -> seconds streamed. Calculate revenue for each.
+6. Do the same for users (again, if we strive for good performance, makes sense to wrap these steps into one)
 
-## For sake of simplicity
+# Design
 
-1. The file structure is flat.
-2. Function `parseStreamingData` is dependent on the implementation of stream reading library. Generators could provide a good abstraction for this: instead, we could provide an argument like `getNextStreamingRow: function`
-3. The whole concept of streaming here is only a half measure, because we store everything in memory anyway.
+### Code organization
+Modules are separated by their role. The entry point contains minimum code so that it is easy to deconstruct into separate blocks.
+We can also run the report generating script as a completely separate job and run api independently. That way we can reuse our code for a much wider spectrum of scenarios.
+
+### Scalability and performance
+We are using streams to read files in chunks. This helps us to not run out of memory once files get huge. We can also improve this approach by storing intermediate values in files/redis/etc. We will lose some performance but our memory consumption will be tolerable and we can recover from where we left off if the process exits for some reason.
+
+### Simplicity and next possible steps
+
+I would probably do this:
+1. Write some tests. To do that, some functions (for example, in `parsers.js`) need to know a little bit less about the implementation. For example, `parseUserData` knows that the data comes from a csv file. That means that in order to test it, we actually need to create a csv file. The simplest solution that I see is to pass a stream instead of file path.
